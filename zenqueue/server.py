@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import errno
-import logging
 import optparse
 import socket
 import sys
@@ -10,6 +9,7 @@ from eventlet import api
 from eventlet import coros
 
 import zenqueue
+from zenqueue import log
 from zenqueue.queue import Queue
 
 # Try to import the simplejson library from two possible sources.
@@ -20,23 +20,6 @@ except ImportError:
 
 
 DEFAULT_MAX_CONC_REQUESTS = 1024
-
-
-# Logging setup
-
-LOG_FORMATTER = logging.Formatter(
-    "%(asctime)s :: %(name)-22s :: %(levelname)-7s :: %(message)s",
-    datefmt='%a, %d %b %Y %H:%M:%S')
-
-CONSOLE_HANDLER = logging.StreamHandler(sys.stdout)
-CONSOLE_HANDLER.setLevel(logging.DEBUG)
-CONSOLE_HANDLER.setFormatter(LOG_FORMATTER)
-
-ROOT_LOGGER = logging.getLogger('')
-ROOT_LOGGER.setLevel(logging.DEBUG) # Default logging level for library work.
-ROOT_LOGGER.addHandler(CONSOLE_HANDLER)
-
-# End logging setup
 
 
 # Option parser setup (for command-line usage)
@@ -66,7 +49,7 @@ class QueueServer(object):
         self.queue = queue or Queue()
         self.client_pool = coros.CoroutinePool(max_size=max_size)
         self.socket = None
-        self.log = logging.getLogger('zenqueue.server:%x' % (id(self),))
+        self.log = log.get_logger('zenq.server:%x' % (id(self),))
     
     def serve(self, interface='0.0.0.0', port=3000):
         
@@ -126,58 +109,63 @@ class QueueServer(object):
     def handle(self, client):
         reader, writer = client.makefile('r'), client.makefile('w')
         
-        while True:
-            try:
-                # If the client sends an empty line, ignore it.
-                line = reader.readline()
-                stripped_line = line.rstrip('\r\n')
-                if not line:
-                    break
-                elif not stripped_line:
-                    api.sleep(0)
-                    continue
-                
-                # Try to parse the request, failing if it is invalid.
+        try:
+            while True:
                 try:
-                    action, args, kwargs = self.parse_command(stripped_line)
-                except ValueError:
-                    self.log.error('Received malformed request from client %x',
-                        id(client))
-                    write_json(writer, ['error:request', 'malformed request'])
-                    continue
+                    # If the client sends an empty line, ignore it.
+                    line = reader.readline()
+                    stripped_line = line.rstrip('\r\n')
+                    if not line:
+                        break
+                    elif not stripped_line:
+                        api.sleep(0)
+                        continue
                 
-                # Find the method corresponding to the requested action.
-                try:
-                    method = getattr(self, 'do_' + action)
-                except AttributeError:
-                    self.log.error('Missing action requested by client %x',
-                        id(client))
-                    write_json(writer, ['error:request', 'action not found'])
-                    continue
+                    # Try to parse the request, failing if it is invalid.
+                    try:
+                        action, args, kwargs = self.parse_command(stripped_line)
+                    except ValueError:
+                        self.log.error('Received malformed request from client %x',
+                            id(client))
+                        write_json(writer, ['error:request', 'malformed request'])
+                        continue
                 
-                # Run the method, dealing with exceptions or success.
-                try:
-                    self.log.debug('Action %r requested by client %x',
-                        action, id(client))
-                    output = method(client, *args, **kwargs)
-                except Break:
-                    break
-                except Queue.Timeout:
-                    write_json(writer, ['error:timeout', None])
+                    # Find the method corresponding to the requested action.
+                    try:
+                        method = getattr(self, 'do_' + action)
+                    except AttributeError:
+                        self.log.error('Missing action requested by client %x',
+                            id(client))
+                        write_json(writer, ['error:request', 'action not found'])
+                        continue
+                
+                    # Run the method, dealing with exceptions or success.
+                    try:
+                        self.log.debug('Action %r requested by client %x',
+                            action, id(client))
+                        output = method(client, *args, **kwargs)
+                    except Break:
+                        break
+                    except Queue.Timeout:
+                        write_json(writer, ['error:timeout', None])
+                    except Exception, exc:
+                        self.log.error('')
+                        write_json(writer, ['error:action', repr(exc)])
+                        raise
+                    else:
+                        self.log.debug('Action %r successful for client %x',
+                            action, id(client))
+                        write_json(writer, ['success', output])
                 except Exception, exc:
-                    self.log.error('')
-                    write_json(writer, ['error:action', repr(exc)])
-                else:
-                    self.log.debug('Action %r successful for client %x',
-                        action, id(client))
-                    write_json(writer, ['success', output])
-            except Exception, exc:
-                self.log.error('Unknown error occurred for client %x: %r',
-                    id(client), exc)
-                write_json(writer, ['error:unknown', repr(exc)])
-        
-        self.log.info('Client %x disconnected', id(client))
-        client.close()
+                    self.log.error('Unknown error occurred for client %x: %r',
+                        id(client), exc)
+                    write_json(writer, ['error:unknown', repr(exc)])
+                    raise
+        except:
+            self.log.error('Forcing disconnection of client %x', id(client))
+        finally:
+            self.log.info('Client %x disconnected', id(client))
+            client.close()
     
     def do_push(self, client, value):
         self.queue.push(value)
@@ -190,13 +178,7 @@ class QueueServer(object):
             self.queue.push(value)
     
     def do_pull_many(self, client, n, timeout=None):
-        results = []
-        for i in xrange(n):
-            try:
-                results.append(self.queue.pull(timeout=timeout))
-            except self.queue.Timeout:
-                break
-        return results
+        return self.queue.pull_many(n, timeout=timeout)
     
     def do_quit(self, client):
         client.shutdown(socket.SHUT_RDWR)
@@ -213,11 +195,12 @@ def _main():
     
     # Handle log level
     log_level = options.log_level
-    if log_level not in 'DEBUG INFO WARNING ERROR FATAL CRITICAL'.split():
-        ROOT_LOGGER.warning('Invalid log level supplied, defaulting to INFO')
-        ROOT_LOGGER.setLevel(logging.INFO)
+    if log_level not in log.LOG_LEVELS:
+        log.ROOT_LOGGER.warning(
+            'Invalid log level supplied, defaulting to INFO')
+        log.ROOT_LOGGER.setLevel(log.INFO)
     else:
-        ROOT_LOGGER.setLevel(getattr(logging, log_level))
+        log.ROOT_LOGGER.setLevel(getattr(log, log_level))
     
     # Create and start server.
     server = QueueServer(max_size=options.max_size)

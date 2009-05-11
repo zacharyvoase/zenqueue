@@ -52,6 +52,29 @@ class Queue(object):
         # By this point, self.queue will have something in it.
         return self.queue.pop()
     
+    def pull_many(self, n, timeout=None):
+        
+        # Shortcut for null consumers.
+        if n is None and timeout is None:
+            while True:
+                self.pull()
+        
+        # If n is None, iterate indefinitely, otherwise n times.
+        gen = eternal(True) if (n is None) else xrange(n)
+        
+        # Pull either n or infinity items from the queue until timeout.
+        results = []
+        for i in gen:
+            try:
+                results.append(self.pull(timeout=timeout))
+            except self.Timeout:
+                break
+        
+        # If nothing could be pull()'d, timeout, otherwise return what you can.
+        if not results:
+            raise self.Timeout
+        return results
+    
     def push(self, value):
         # Add it to the inner queue. appendleft() is used because pop() removes
         # from the right.
@@ -70,3 +93,12 @@ class Queue(object):
             # might also allow the ready event to notify the pull()ing coro,
             # which will then pop.
             api.sleep(0)
+    
+    def push_many(self, *values):
+        for value in values:
+            self.push(value)
+
+
+def eternal(item):
+    while True:
+        yield item
