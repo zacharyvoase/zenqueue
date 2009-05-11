@@ -1,6 +1,6 @@
-=============
-ZenQueue v0.1
-=============
+===============
+ZenQueue v0.1.1
+===============
 
 ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large.
 

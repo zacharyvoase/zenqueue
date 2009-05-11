@@ -176,6 +176,7 @@ class QueueServer(object):
                     id(client), exc)
                 write_json(writer, ['error:unknown', repr(exc)])
         
+        self.log.info('Client %x disconnected', id(client))
         client.close()
     
     def do_push(self, client, value):
