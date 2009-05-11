@@ -5,7 +5,8 @@
 import time
 from zenqueue import client
 from zenqueue import log
-log.ROOT_LOGGER.setLevel(log.ERROR)
+
+log.silence()
 
 MESSAGES = 1000000 # 1,000,000 (1 million) messages will be sent in total.
 UNIT_SIZE = 10000 # Each request will contain 10,000 (10 thousand) messages.
@@ -18,8 +19,6 @@ start_time = time.time()
 
 for i in xrange(MESSAGES / UNIT_SIZE):
     c.push_many(*tuple(UNIT))
-
-for j in xrange(MESSAGES / UNIT_SIZE):
     assert (c.pull_many(UNIT_SIZE, timeout=0) == UNIT)
 
 end_time = time.time()

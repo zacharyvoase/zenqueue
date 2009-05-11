@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# This module contains some defaults for the logging system.
+
 import logging
 import sys
 
@@ -20,4 +22,17 @@ LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL', 'CRITICAL']
 for level in LOG_LEVELS:
     vars()[level] = getattr(logging, level)
 
+global get_logger
 get_logger = logging.getLogger
+
+
+def silence():
+    global get_logger
+    get_logger = lambda name: NullLogger()
+    ROOT_LOGGER.setLevel(float('inf'))
+
+
+class NullLogger(object):
+    def __getattr__(self, attr):
+        if attr.upper() in LOG_LEVELS:
+            return lambda *args, **kwargs: None
