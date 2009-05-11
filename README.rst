@@ -1,6 +1,6 @@
-=============
-ZenQueue v0.3
-=============
+===============
+ZenQueue v0.3.1
+===============
 
 ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes faster and more stable client and server implementations. The next minor release (version 0.4) will include a client implementation which does not use Eventlet.
 
