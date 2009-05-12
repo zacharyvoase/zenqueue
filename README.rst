@@ -1,8 +1,8 @@
-===============
-ZenQueue v0.3.3
-===============
+=============
+ZenQueue v0.4
+=============
 
-ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes faster and more stable client and server implementations. The next minor release (version 0.4) will include a client implementation which does not use Eventlet.
+ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes faster and more stable client and server implementations, in addition to both synchronous *and* asynchronous implementations of the client and queue. The server, however, only exists in asynchronous mode.
 
 Aim and History
 ===============
@@ -12,10 +12,10 @@ At its heart, ZenQueue aims to be a lean, network-available implementation of th
 Requirements
 ============
 
-In order to run ZenQueue, you're going to need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run the ZenQueue server. In addition, this library (and client, and server) runs around *six* times faster on Python 2.5 than Python 2.6. The author hasn't a clue as to why, but if you really want to take advantage of ZenQueue's speed, then use Python 2.5.
+The latest version of ZenQueue does not require any additional libraries to run in *synchronous* mode. In order to run ZenQueue in asynchronous mode (which is both recommended by the author *and* the only way to run the TCP server), you'll need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run the ZenQueue server. In addition, this library (and client, and server) runs around *six* times faster on Python 2.5 than Python 2.6. The author hasn't a clue as to why, but if you really want to take advantage of ZenQueue's speed, then use Python 2.5.
 
-Using a Queue From Your Code
-============================
+Using a Queue From Your Code (Asynchronously)
+=============================================
 
 So it's pretty simple to use ZenQueue; just import it and you're away::
     
@@ -31,9 +31,9 @@ So it's pretty simple to use ZenQueue; just import it and you're away::
     >>> q.pull(timeout=0) # Queue is empty, so this raises a Timeout error.
     Traceback (most recent call last):
         ...
-    zenqueue.queue.Timeout
+    zenqueue.queue.Queue.Timeout
 
-The queue itself is managed not by threads and locks, but by coroutines. If you don't know what they are, or don't understand them, then the introductory material out there is probably far better than what I could ever attempt to reproduce; however, I will tell you that they're awesome, and that they solve a multitude of issues that are difficult to get around with traditional threads. One of the coolest things about them is that coroutines actually *benefit* from having the Global Interpreter Lock (if you don't know what that is then you probably don't need to).
+In asynchronous mode, the queue itself is managed not by threads and locks, but by coroutines. If you don't know what they are, or don't understand them, then the introductory material out there is probably far better than what I could ever attempt to reproduce; however, I will tell you that they're awesome, and that they solve a multitude of issues that are difficult to get around with traditional threads. One of the coolest things about them is that coroutines actually *benefit* from having the Global Interpreter Lock (if you don't know what that is then you probably don't need to).
 
 If you want to run things in parallel that use the same queue, rather than using ``threading.Thread``, you should use the helpful functions and classes provided in ``eventlet.api`` and ``eventlet.coros``. Consult the `Eventlet documentation <http://wiki.secondlife.com/wiki/Eventlet/Documentation>`_ for more information on these; I really can't afford to be brief on them here (you need the thorough walkthrough).
 
@@ -51,10 +51,20 @@ The Many Methods
 
 This was a deliberate design decision; it allows you to do things like ``pull_many(1024, timeout=0)``, which will retrieve a maximum of 1024 items. Since you might also want to retrieve the entire contents of the queue, you can provide ``None`` as the number of items to fetch, and the method will just return everything it can ``pull()`` without a timeout. For example, ``pull_many(None, timeout=0)`` will grab the entire contents of the queue, emptying the queue at the same time. Another trick is to specify ``None`` with no timeout; this causes the coroutine which called ``pull_many()`` to act as a 'null consumer' (much like the special ``/dev/null`` file on UNIX systems). Every message sent to the queue will be consumed by the calling coroutine, but since it will always block and never return, it acts as a 'black hole'. Because this will attempt to accrue a large number of items in a temporary list in memory, ZenQueue implements a shortcut for these null consumers.
 
-Running a Queue Server
-======================
+Using the Queue Synchronously
+=============================
 
-ZenQueue can also run remotely via TCP; it's quite fast at doing so, because it uses an incredibly simple JSON-based socket-level protocol. Essentially, this protocol is client-platform-agnostic (although a client only exists for Python right now). To run a server, you can do the following from the command line::
+The synchronous version of ZenQueue does not require any additional libraries to run; to create a queue which uses threading instead of coroutines, you can instantiate the ``Queue`` class with a ``mode`` keyword parameter, like so::
+    
+    >>> from zenqueue.queue import Queue
+    >>> queue = Queue(mode='sync')
+
+This convenience comes at a cost; the ``zenqueue.queue.Queue`` class is not an actual queue class, but simply a wrapper which imports the required queue backend and returns an instance of it. If you need the original ``Queue`` classes, they can be found at ``zenqueue.queue.async.Queue`` and ``zenqueue.queue.sync.Queue`` for the asynchronous and synchronous versions, respectively.
+
+Running the Native Queue Server
+===============================
+
+ZenQueue can run remotely via TCP; it's quite fast at doing so, because it uses an incredibly simple JSON-based socket-level protocol. Essentially, this protocol is client-platform-agnostic (although a client only exists for Python right now). To run a server, you can do the following from the command line::
     
     username@host$ python -m zenqueue.server
 
@@ -62,14 +72,19 @@ For some help, type::
     
     username@host$ python -m zenqueue.server --help
 
-I've even made it print some pretty logging information so that you know exactly what it's doing. The server itself uses `asynchronous IO <http://en.wikipedia.org/wiki/Asynchronous_I/O>`_, facilitated by the Eventlet library and coroutine-based implementation. This means that there are no issues raised by having multiple clients connected in parallel, because coroutines provide inherent mutual exclusion (as would be obtained by threads) coupled with relatively huge improvements in performance when under concurrent load.
+I've even made it print some pretty logging information so that you know exactly what it's doing. The server itself uses `asynchronous IO <http://en.wikipedia.org/wiki/Asynchronous_I/O>`_, facilitated by the Eventlet library and coroutine-based implementation. This means that there are no issues raised by having multiple clients connected in parallel, because coroutines provide inherent mutual exclusion (as would be obtained by threads) coupled with relatively huge improvements in performance when under concurrent load. However, whilst you can use the client and queue libraries without Eventlet, it is required for running the native server.
+
+The HTTP Server
+---------------
+
+This isn't implemented yet, but is planned.
 
 Connecting to a Queue Server
 ============================
 
-Using the client library, you can connect to a ZenQueue server. The client also uses Eventlet for networking, so you can run multiple clients in tandem (using coroutines) and reap the benefits of asynchronous IO. You'll get a fair amount of logging output, too. To use the client, you can do something like this::
+Using the client library, you can connect to a ZenQueue server. The asynchronous client also uses Eventlet for networking, so you can run multiple clients in tandem (using coroutines) and reap the benefits of asynchronous IO. You'll get a fair amount of logging output, too. To use the client, you can do something like this::
     
-    >>> from zenqueue.client import QueueClient
+    >>> from zenqueue.client.native import QueueClient
     >>> c = QueueClient(host='127.0.0.1', port=3000)
     >>> c.push('a')
     >>> c.pull()
@@ -80,15 +95,25 @@ Using the client library, you can connect to a ZenQueue server. The client also 
 
 The reason why the messages came back as a Unicode strings is because the simplejson library for Python is Unicode-aware (as such, so is the ZenQueue server). Since JSON is the format of choice for data interchange with the ZenQueue server, content is passed around as Unicode. A rule of thumb is that you can send and receive any Python object over the network that can be serialized to JSON (via the simplejson library, and without custom decoder hooks).
 
+The Synchronous Client Library
+------------------------------
+
+There is also a synchronous, threading-based client library available which does not depend on Eventlet (and indeed only uses threading if you try to use the same client object from multiple threads). An instance of the synchronous client can be obtained (as with ``Queue``) using the ``mode`` keyword parameter to ``QueueClient``::
+
+    >>> from zenqueue.client.native import QueueClient
+    >>> synclient = QueueClient(mode='sync', host='127.0.0.1', port=3000)
+
+Again, the caveat from above applies: this is simply a wrapper over the real ``QueueClient`` classes at ``zenqueue.client.native.async.QueueClient`` and ``zenqueue.client.native.sync.QueueClient`` (the asynchronous and synchronous clients, respectively).
+
 The Protocol
 ------------
 
-The protocol itself is an ad-hoc form of Remote Procedure Call, with the client sending a request for an action to be performed (and, optionally, some positional and keyword arguments) and the server either returning a value (indicating success) or an error (which will be raised on the client side). A lot of the concept behind it originally stems from HTTP's 'send request with method, get response with status' architecture. This is because I was originally planning on implementing the server using WSGI (but then decided against it when I realised what an impact it would have on performance). I'm sure it would be possible, if not easy, to build a HTTP front-end to ZenQueue.
+The protocol itself is an ad-hoc form of Remote Procedure Call, with the client sending a request for an action to be performed (and, optionally, some positional and keyword arguments) and the server either returning a value (indicating success) or an error (which will be raised on the client side). A lot of the concept behind it originally stems from HTTP's 'send request with method, get response with status' architecture. I am planning on releasing a HTTP interface to the library in the next major version.
 
 Benchmarks
 ==========
 
-In the benchmarks I've run personally, ZenQueue has come out as incredibly fast (using the TCP server). I was able to send, and then receive, one million messages to/from one server at an average rate of 300k (300 thousand) messages per second (calculated as one million divided by the time it took to send and then receive all the messages). From the producer or consumer side, running in parallel, it looks a lot more like 600k messages per second, because each involves only one leg of the process. Although a big **FAT** disclaimer: **Your Mileage May Vary** (**YMMV**). The code I used to do the benchmarking can be found in the benchmark.py file. I was grouping the messages together into single requests; this multiplexing might not be feasible in every scenario, but it does increase the speed greatly.
+In the benchmarks I've run personally, ZenQueue has come out as incredibly fast (using the TCP server). I was able to send, and then receive, one million messages to/from one server at an average rate of several hundred thousand messages per second (calculated as one million divided by the time it took to send and then receive all the messages). Although a big **FAT** disclaimer is necessary: **Your Mileage May Vary**. The code I used to do the benchmarking can be found in the benchmark.py file. I was grouping the messages together into single requests; this multiplexing might not be feasible in every scenario, but it does increase the speed significantly when you can. Sometimes, if you are sending requests to a remote queue server, you may be able to improve performance by sending messages to a local queue, then running an intermediate consumer which receives these, aggregates them and forwards them to the remote queue in batch.
 
 Managing Multiple Queues, and Other Sophisticated Activities
 ============================================================
@@ -135,7 +160,7 @@ This software is licensed under the following MIT-style license:
 Plans for the Future
 ====================
 
-My primary priority right now is to keep this library working fully in its current state, optimizing performance in certain areas perhaps, but for the most part maintaining stability. I also plan on building a couple of variations of ZenQueue; most notably a 'ZenStack' (I'm sure you can probably guess what that'll do) and a 'ZenDeque' (a dual queue/stack). I'm also planning on building a synchronous, single-socket client library.
+My primary priority right now is to keep this library working fully in its current state, optimizing performance in certain areas perhaps, but for the most part maintaining stability. I also plan on building a couple of variations of ZenQueue; most notably a 'ZenStack' (I'm sure you can probably guess what that'll do) and a 'ZenDeque' (a dual queue/stack).
 
 Author
 ======
