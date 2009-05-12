@@ -80,16 +80,14 @@ class QueueServer(object):
         # implementation of an asynchronous WSGI server.
         try:
             while True:
-                
                 try:
-                    
                     try:
                         client_socket, client_addr = self.socket.accept()
                     except socket.error, exc:
                         # EPIPE (Broken Pipe) and EBADF (Bad File Descriptor)
                         # errors are common for clients that suddenly quit. We
                         # shouldn't worry so much about them.
-                        if exc.errno not in [errno.EPIPE, errno.EBADF]:
+                        if exc[0] not in [errno.EPIPE, errno.EBADF]:
                             raise
                     # Throughout the logging output, we use the client's ID in
                     # hexadecimal to identify a particular client in the logs.
@@ -115,7 +113,7 @@ class QueueServer(object):
             except socket.error, exc:
                 # See above for why we shouldn't worry about Broken Pipe or Bad
                 # File Descriptor errors.
-                if exc.errno not in [errno.EPIPE, errno.EBADF]:
+                if exc[0] not in [errno.EPIPE, errno.EBADF]:
                     raise
             finally:
                 self.socket = None
@@ -187,7 +185,7 @@ class QueueServer(object):
                         # The Break error propagates up the call chain and
                         # causes the server to disconnect the client.
                         break
-                    except Queue.Timeout:
+                    except self.queue.Timeout:
                         # The client will pick this up. It's not so much a
                         # serious error, which is why we don't log it: timeouts
                         # are more often than not specified for very useful
