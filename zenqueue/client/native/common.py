@@ -4,38 +4,26 @@ from collections import deque
 import errno
 import socket
 
-# Try to import the simplejson library from two possible sources.
-try:
-    import json
-except ImportError:
-    import simplejson as json
-
+from zenqueue import json
 from zenqueue import log
+from zenqueue.client.common import AbstractQueueClient
 
 
-# The following are a bunch of different exceptions and signals that can be
-# raised.
-class QueueClientError(Exception): pass
-class ActionError(QueueClientError): pass
-class ClosedClientError(QueueClientError): pass
-class RequestError(QueueClientError): pass
-class TimeoutError(QueueClientError): pass
-class UnknownError(QueueClientError): pass
-
-CLOSE_SIGNAL = object() # A sort of singleton.
+CLOSE_SIGNAL = object() # A sort of singleton, which you can test with `is`.
 
 
-class AbstractQueueClient(object):
+class NativeQueueClient(AbstractQueueClient):
     
-    actions = ['push', 'push_many', 'pull', 'pull_many']
+    log_name = 'zenq.client.native'
     lock_class = NotImplemented
     
     def __init__(self, host='127.0.0.1', port=3000):
-        self.log = log.get_logger('zenq.client:%x' % (id(self),))
+        super(NativeQueueClient, self).__init__() # Initializes the log.
         
         self.socket = self.connect_tcp((host, port))
         self.__reader = None
         self.__writer = None
+        self.__closed = False
         
         self.lock = self.lock_class()
     
@@ -83,10 +71,11 @@ class AbstractQueueClient(object):
                 raise
         
         self.socket.close()
-        self.socket = None
         
+        self.socket = None
         self.__writer = None
         self.__reader = None
+        self.__closed = True
     
     def send(self, data):
         
@@ -96,7 +85,7 @@ class AbstractQueueClient(object):
         self.log.debug('Socket lock acquired')
         
         if not self.socket:
-            raise ClosedClientError
+            raise self.ClosedClientError
         
         try:
             # Send the request data. It should be a single line,
@@ -130,37 +119,8 @@ class AbstractQueueClient(object):
         # This method is responsible for the JSON encoding/decoding, not send().
         # This was deliberate because it keeps most of the protocol details
         # separate from the lower-level socket code.
-        try:
-            received_data = self.send(
-                json.dumps([action, args, kwargs]) + '\r\n')
-            status, result = json.loads(received_data)
-        except ValueError, exc:
-            self.log.error('Invalid response returned: %r', received_data)
-            raise
-        
-        # This handles the various response statuses the server can return.
-        if status == 'success':
-            self.log.debug('Request successful')
-            return result
-        elif status == 'error:action':
-            self.log.error('Action error occurred')
-            raise ActionError(result)
-        elif status == 'error:request':
-            self.log.error('Request error occurred')
-            raise RequestError(result)
-        elif status == 'error:timeout':
-            self.log.debug('Request timed out')
-            raise TimeoutError
-        elif status == 'error:unknown':
-            self.log.error('Unknown error occurred')
-            raise UnknownError(result)
-    
-    def __getattr__(self, attribute):
-        if attribute in self.actions:
-            def wrapper(*args, **kwargs):
-                return self.action(attribute, args, kwargs)
-            return wrapper
-        raise AttributeError(attribute)
+        received_data = self.send(json.dumps([action, args, kwargs]) + '\r\n')
+        return self.handle_response(received_data)
     
     @property
     def reader(self):
@@ -177,3 +137,7 @@ class AbstractQueueClient(object):
         if (not self.__writer) and self.socket:
             self.__writer = self.socket.makefile('w')
         return self.__writer
+    
+    @property
+    def closed(self):
+        return self.__closed

@@ -3,11 +3,11 @@
 import socket
 import threading
 
-from zenqueue.client.native.common import AbstractQueueClient
+from zenqueue.client.native.common import NativeQueueClient
 from zenqueue.utils.sync import Lock
 
 
-class QueueClient(AbstractQueueClient):
+class QueueClient(NativeQueueClient):
     
     lock_class = Lock
     

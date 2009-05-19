@@ -1,18 +1,25 @@
-===============
-ZenQueue v0.4.2
-===============
+=============
+ZenQueue v0.5
+=============
 
-ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes faster and more stable client and server implementations, in addition to both synchronous *and* asynchronous implementations of the client and queue. The server, however, only exists in asynchronous mode.
+ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes both native and HTTP client and server implementations, in addition to both synchronous *and* asynchronous implementations of the clients and queue. The servers, however, are only available in asynchronous mode.
 
 Aim and History
 ===============
 
-At its heart, ZenQueue aims to be a lean, network-available implementation of the queue data structure. After playing around with the concept and realising that it was actually quite cool, I decided to go about implementing this as simply as possible. Experience tells me that the more lines of code your application has, the more prone it is to errors and the slower it's likely to be.
+At its heart, ZenQueue aims to be a lean, network-available implementation of the queue data structure. After playing around with the concept and realising that it was actually quite cool, I decided to go about implementing this as simply as possible.
 
 Requirements
 ============
 
-The latest version of ZenQueue does not require any additional libraries to run in *synchronous* mode. In order to run ZenQueue in asynchronous mode (which is both recommended by the author *and* the only way to run the TCP server), you'll need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run the ZenQueue server. In addition, this library (and client, and server) runs around *six* times faster on Python 2.5 than Python 2.6. The author hasn't a clue as to why, but if you really want to take advantage of ZenQueue's speed, then use Python 2.5.
+The latest version of ZenQueue does not require any additional libraries to run in *synchronous* mode. In order to run ZenQueue in asynchronous mode (which is both recommended by the author *and* the only way to run either of the servers), you'll need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run either of the ZenQueue servers (this is included with Python 2.6). In addition, this library (and client, and server) runs around *six* times faster on Python 2.5 than Python 2.6. The author hasn't a clue as to why, but if you really want to take advantage of ZenQueue's speed, then use Python 2.5.
+
+If you want to run the HTTP server, you're going to need the `Werkzeug <http://werkzeug.pocoo.org>`_ library, a toolkit for building WSGI applications. If you want to use the HTTP client, you're also going to need the author's own `URLObject <http://github.com/disturbyte/urlobject/>`_ library. Both of these can be easy_install'd like so:
+    
+    easy_install -U Werkzeug
+    easy_install -U URLObject
+
+If you don't intend to use the HTTP features of ZenQueue, then you won't need either of these libraries.
 
 Using a Queue From Your Code (Asynchronously)
 =============================================
@@ -66,23 +73,23 @@ Running the Native Queue Server
 
 ZenQueue can run remotely via TCP; it's quite fast at doing so, because it uses an incredibly simple JSON-based socket-level protocol. Essentially, this protocol is client-platform-agnostic (although a client only exists for Python right now). To run a server, you can do the following from the command line::
     
-    username@host$ python -m zenqueue.server
+    username@host$ python -m zenqueue.server.native
 
 For some help, type::
     
-    username@host$ python -m zenqueue.server --help
+    username@host$ python -m zenqueue.server.native --help
 
 I've even made it print some pretty logging information so that you know exactly what it's doing. The server itself uses `asynchronous IO <http://en.wikipedia.org/wiki/Asynchronous_I/O>`_, facilitated by the Eventlet library and coroutine-based implementation. This means that there are no issues raised by having multiple clients connected in parallel, because coroutines provide inherent mutual exclusion (as would be obtained by threads) coupled with relatively huge improvements in performance when under concurrent load. However, whilst you can use the client and queue libraries without Eventlet, it is required for running the native server.
 
 The HTTP Server
 ---------------
 
-This isn't implemented yet, but is planned.
+The ZenQueue HTTP server is implemented using Werkzeug and Eventlet. Instead of using ``zenqueue.server.native``, simply use ``zenqueue.server.http``. All of the arguments that the native server takes are also accepted by the HTTP server, with the slight exception that the default port for the HTTP server is 3080. Note that the HTTP server does not run as fast as the raw TCP server, but exists to increase compatibility with other languages and infrastructures.
 
 Connecting to a Queue Server
 ============================
 
-Using the client library, you can connect to a ZenQueue server. The asynchronous client also uses Eventlet for networking, so you can run multiple clients in tandem (using coroutines) and reap the benefits of asynchronous IO. You'll get a fair amount of logging output, too. To use the client, you can do something like this::
+Using the client library, you can connect to a ZenQueue server. The asynchronous client also uses Eventlet for networking, so you can run multiple clients in tandem (using coroutines) and reap the benefits of asynchronous I/O. You'll get a fair amount of logging output, too. To use the client, you can do something like this::
     
     >>> from zenqueue.client.native import QueueClient
     >>> c = QueueClient(host='127.0.0.1', port=3000)
@@ -105,20 +112,37 @@ There is also a synchronous, threading-based client library available which does
 
 Again, the caveat from above applies: this is simply a wrapper over the real ``QueueClient`` classes at ``zenqueue.client.native.async.QueueClient`` and ``zenqueue.client.native.sync.QueueClient`` (the asynchronous and synchronous clients, respectively).
 
-The Protocol
-------------
+The Native Protocol
+-------------------
 
-The protocol itself is an ad-hoc form of Remote Procedure Call, with the client sending a request for an action to be performed (and, optionally, some positional and keyword arguments) and the server either returning a value (indicating success) or an error (which will be raised on the client side). A lot of the concept behind it originally stems from HTTP's 'send request with method, get response with status' architecture. I am planning on releasing a HTTP interface to the library in the next major version.
+The protocol itself is an ad-hoc form of Remote Procedure Call, with the client sending a request for an action to be performed (and, optionally, some positional and keyword arguments) and the server either returning a value (indicating success) or an error (which will be raised on the client side). A lot of the concept behind it originally stems from HTTP's 'send request with method, get response with status' architecture.
 
-Benchmarks
-==========
+The HTTP Client
+---------------
 
-In the benchmarks I've run personally, ZenQueue has come out as incredibly fast (using the TCP server). I was able to send, and then receive, one million messages to/from one server at an average rate of several hundred thousand messages per second (calculated as one million divided by the time it took to send and then receive all the messages). Although a big **FAT** disclaimer is necessary: **Your Mileage May Vary**. The code I used to do the benchmarking can be found in the benchmark.py file. I was grouping the messages together into single requests; this multiplexing might not be feasible in every scenario, but it does increase the speed significantly when you can. Sometimes, if you are sending requests to a remote queue server, you may be able to improve performance by sending messages to a local queue, then running an intermediate consumer which receives these, aggregates them and forwards them to the remote queue in batch.
+There also exists a built-in HTTP client which works in tandem with the HTTP server (described above), in both synchronous and asynchronous modes. To use the HTTP client, simply import ``QueueClient`` as before but from ``zenqueue.client.http`` instead. The interface to these clients is identical, but the default port will be set to 3080 instead of 3000.
+
+The All-in-One Constructor
+--------------------------
+
+A ``QueueClient`` constructor which uses keyword arguments to specify both the mode of the client (i.e. async/sync) *and* the method of the client (i.e. native/http) can be obtained like so::
+
+    >>> from zenqueue.client import QueueClient
+    >>> client = QueueClient(mode='async', method='native')
+
+The caveat from above applies again: this should not be subclassed, because it is merely a wrapper class which uses the ``__new__`` method to override its own construction to return a *proper* client object.
+
+Benchmarks and Performance Tips
+================================
+
+In the benchmarks I've run personally, ZenQueue has come out as incredibly fast (using the TCP server). I was able to send, and then receive, one million messages to/from one server at an average rate of several hundred thousand messages per second (calculated as one million divided by the time it took to send and then receive all the messages). Although a big **FAT** disclaimer is necessary: **Your Mileage May Vary**. The code I used to do the benchmarking can be found in the ``zenqueue.client.benchmark`` module. I was grouping the messages together into single requests; this multiplexing might not be feasible in every scenario, but it does increase the speed significantly when you can. Sometimes, if you are sending requests to a remote queue server, you may be able to improve performance by sending messages to a local queue, then running an intermediate consumer which receives these, aggregates them and forwards them to the remote queue in batch.
+
+The benchmark module can also test the HTTP server (using the HTTP client). The results from this are a little more modest; I was getting around 142,000 messages sent/received per second using Python 2.5 and the asynchronous HTTP client. Again, this was using multiplexing of messages; to send them individually would dramatically decrease the recorded speed due to per-request network overhead (which HTTP is notorious for).
 
 Managing Multiple Queues, and Other Sophisticated Activities
 ============================================================
 
-At the moment, ZenQueue doesn't support running multiple queues from the same server, and I doubt it ever will. If you need to run several queues at once, you can just run multiple server instances on different ports. If you want it to support things like routing keys, durability, fanout and direct exchanges and binding, et cetera, then you're also out of luck. There's a reason why I chose to focus on simplicity with this library; if you need a fully-fledged message queueing server with bells and whistles, I suggest you go with an `AMQP <http://www.amqp.org/>`_-based solution like `RabbitMQ <http://www.rabbitmq.com/>`_ (which I use myself and heartily recommend).
+At the moment, ZenQueue doesn't support running multiple queues from the same server, and I doubt it ever will. If you need to run several queues at once, you can just run multiple server instances on different ports. If you want it to support things like routing keys, durability, fanout and direct exchanges and binding, et cetera, then you're out of luck I'm afraid. There's a reason why I chose to focus on simplicity with this library; if you need a fully-fledged message queueing server with bells and whistles, I suggest you go with an `AMQP <http://www.amqp.org/>`_-based solution like `RabbitMQ <http://www.rabbitmq.com/>`_ (which I've used myself for some projects and heartily recommend).
 
 Downloading and Installation
 ============================

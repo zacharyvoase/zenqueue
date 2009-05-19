@@ -91,3 +91,16 @@ class Lock(Semaphore):
     @property
     def in_use(self):
         return (self.count == 0)
+
+
+def callcc(function):
+    def continuation_generator():
+        val = yield
+        yield
+        yield val
+    continuation = continuation_generator()
+    continuation.next()
+    def callback(value):
+        continuation.send(value)
+    function(callback)
+    return continuation.next()

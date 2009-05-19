@@ -7,7 +7,7 @@ import sys
 
 
 LOG_FORMATTER = logging.Formatter(
-    "%(asctime)s :: %(name)-18s :: %(levelname)-7s :: %(message)s",
+    "%(asctime)s :: %(name)s :: %(levelname)-7s :: %(message)s",
     datefmt='%a, %d %b %Y %H:%M:%S')
 
 CONSOLE_HANDLER = logging.StreamHandler(sys.stdout)
@@ -25,6 +25,8 @@ for level in LOG_LEVELS:
 global get_logger
 get_logger = logging.getLogger
 
+def set_level(level):
+    ROOT_LOGGER.setLevel(getattr(logging, level))
 
 def silence():
     global get_logger

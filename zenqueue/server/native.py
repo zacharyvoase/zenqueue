@@ -8,15 +8,10 @@ import sys
 from eventlet import api
 from eventlet import coros
 
-import zenqueue
+from zenqueue import json
 from zenqueue import log
 from zenqueue.queue import Queue
-
-# Try to import the simplejson library from two possible sources.
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import zenqueue
 
 
 DEFAULT_MAX_CONC_REQUESTS = 1024
@@ -25,7 +20,7 @@ DEFAULT_MAX_CONC_REQUESTS = 1024
 # Option parser setup (for command-line usage)
 
 USAGE = 'Usage: %prog [-i IFACE] [-p PORT] [-c NUM] [-l LEVEL]'
-OPTION_PARSER = optparse.OptionParser(prog='python -m zenqueue.server',
+OPTION_PARSER = optparse.OptionParser(prog='python -m zenqueue.server.native',
     usage=USAGE, version=zenqueue.__version__)
 OPTION_PARSER.add_option('-i', '--interface', default='0.0.0.0',
     help='Bind to interface IFACE [default %default]', metavar='IFACE')
@@ -48,11 +43,11 @@ class ActionError(Exception): pass
 class Break(Exception): pass
 
 
-class QueueServer(object):
+class NativeQueueServer(object):
     
     def __init__(self, queue=None, max_size=DEFAULT_MAX_CONC_REQUESTS):
         
-        self.log = log.get_logger('zenq.server:%x' % (id(self),))
+        self.log = log.get_logger('zenq.server.native:%x' % (id(self),))
         
         # An initial queue may be provided; this might help with durable queues
         # (i.e. those that save their state to disk and can restore it on load).
@@ -68,7 +63,7 @@ class QueueServer(object):
     
     def serve(self, interface='0.0.0.0', port=3000):
         
-        self.log.info('ZenQueue Server v%s', zenqueue.__version__)
+        self.log.info('ZenQueue Native Server v%s', zenqueue.__version__)
         if interface == '0.0.0.0':
             self.log.info('Serving on %s:%d (all interfaces)', interface, port)
         else:
@@ -277,7 +272,7 @@ def _main():
         log.ROOT_LOGGER.setLevel(getattr(log, log_level.upper()))
     
     # Instantiate and start server.
-    server = QueueServer(max_size=options.max_size)
+    server = NativeQueueServer(max_size=options.max_size)
     server.serve(interface=options.interface, port=options.port)
 
 

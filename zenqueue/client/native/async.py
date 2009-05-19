@@ -2,11 +2,11 @@
 
 from eventlet import api
 
-from zenqueue.client.native.common import AbstractQueueClient
+from zenqueue.client.native.common import NativeQueueClient
 from zenqueue.utils.async import Lock
 
 
-class QueueClient(AbstractQueueClient):
+class QueueClient(NativeQueueClient):
     
     lock_class = Lock
     

@@ -7,9 +7,9 @@ class QueueClient(object):
     
     def __new__(cls, mode='async', *args, **kwargs):
         if mode == 'async':
-            from zenqueue.client.native import async
-            return async.QueueClient(*args, **kwargs)
+            from zenqueue.client.native.async import QueueClient
         elif mode == 'sync':
-            from zenqueue.client.native import sync
-            return async.QueueClient(*args, **kwargs)
-        raise ValueError('Invalid client mode: %r' % (mode,))
+            from zenqueue.client.native.sync import QueueClient
+        else:
+            raise ValueError('Invalid client mode: %r' % (mode,))
+        return QueueClient(*args, **kwargs)

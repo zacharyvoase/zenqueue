@@ -13,11 +13,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='ZenQueue',
-    version='0.4.2',
+    version='0.5',
     description='An incredibly simple (but fast) network message queueing system, written in Python.',
     author='Zachary Voase',
     author_email='disturbyte@gmail.com',
     url='http://github.com/disturbyte/zenqueue',
     packages=find_packages(),
-    install_requires=['simplejson'],
+    install_requires=['simplejson', 'URLObject'],
 )

@@ -4,12 +4,12 @@
 import optparse
 import time
 
-from zenqueue.client.native import QueueClient
+from zenqueue.client import QueueClient
 from zenqueue import log
 
 
 option_parser = optparse.OptionParser(
-    usage='%prog [options]', version='0.1')
+    usage='python -m zenqueue.client.benchmark [options]', version='0.2')
 
 option_parser.add_option('-a', '--address', metavar='ADDR',
     default='127.0.0.1:3000',
@@ -32,6 +32,10 @@ option_parser.add_option('-m', '--message', metavar='MESSAGE', default='a',
 option_parser.add_option('-s', '--synchronous', action='store_true',
     default=False,
     help='Use synchronous transfer mode [default asynchronous]')
+
+option_parser.add_option('-t', '--http', action='store_true',
+    default=False,
+    help='Use HTTP instead of native client [default native]')
 
 
 def main():
@@ -63,18 +67,24 @@ def main():
     if options.synchronous:
         mode = 'sync'
     
-    client = QueueClient(mode=mode, host=host, port=port)
-
+    # Configure method (native/http)
+    method = 'native'
+    if options.http:
+        method = 'http'
+    
+    client = QueueClient(mode=mode, method=method, host=host, port=port)
+    
     start_time = time.time()
-
+    
     while message_count > 0:
-        client.push_many(*tuple(unit))
+        client.push_many(*unit)
         assert (client.pull_many(options.unit_size, timeout=0) == unit)
         message_count -= options.unit_size
-
+    
     end_time = time.time()
     
-    client.close()
+    if method == 'native':
+        client.close()
     
     time_taken = end_time - start_time
     
