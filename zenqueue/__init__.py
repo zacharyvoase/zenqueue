@@ -5,6 +5,9 @@ __version__ = '0.5'
 
 # Try to import SimpleJSON from a couple of different sources.
 try:
-    import json
-except ImportError:
     import simplejson as json
+except ImportError:
+    try:
+        import json
+    except ImportError:
+        raise ImportError('Looks like you need to install SimpleJSON')
