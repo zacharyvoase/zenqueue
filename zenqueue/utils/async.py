@@ -60,7 +60,7 @@ class Semaphore(object):
                 timer.cancel()
                 
             if not result:
-                raise self.AcquireCancelled()
+                raise self.WaitCancelled
         
         self.__count -= 1
     
