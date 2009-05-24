@@ -1,6 +1,6 @@
-=============
-ZenQueue v0.5
-=============
+===============
+ZenQueue v0.5.1
+===============
 
 ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes both native and HTTP client and server implementations, in addition to both synchronous *and* asynchronous implementations of the clients and queue. The servers, however, are only available in asynchronous mode.
 
@@ -12,7 +12,9 @@ At its heart, ZenQueue aims to be a lean, network-available implementation of th
 Requirements
 ============
 
-The latest version of ZenQueue does not require any additional libraries to run in *synchronous* mode. In order to run ZenQueue in asynchronous mode (which is both recommended by the author *and* the only way to run either of the servers), you'll need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run either of the ZenQueue servers (this is included with Python 2.6). In addition, this library (and client, and server) runs around *six* times faster on Python 2.5 than Python 2.6. The author hasn't a clue as to why, but if you really want to take advantage of ZenQueue's speed, then use Python 2.5.
+The latest version of ZenQueue does not require any additional libraries to run in *synchronous* mode. In order to run ZenQueue in asynchronous mode (which is both recommended by the author *and* the only way to run either of the servers), you'll need the fantastic `Eventlet <http://wiki.secondlife.com/wiki/Eventlet>`_ library, and at least Python 2.4. I tried to write this to be as portable as possible, but there may be some issues (I don't exactly have many systems to test this out on). You'll also need the `simplejson <http://pypi.python.org/pypi/simplejson/>`_ library if you want to run either of the ZenQueue servers.
+
+Please note that, although Python 2.6 comes with a ``json`` module which is a port of SimpleJSON included in the standard library, the latest version of SimpleJSON runs a *lot* faster than the one included with Python 2.6; if you really want to take advantage of ZenQueue's speed then it's recommended that you install the external version.
 
 If you want to run the HTTP server, you're going to need the `Werkzeug <http://werkzeug.pocoo.org>`_ library, a toolkit for building WSGI applications. If you want to use the HTTP client, you're also going to need the author's own `URLObject <http://github.com/disturbyte/urlobject/>`_ library. Both of these can be easy_install'd like so:
     

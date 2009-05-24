@@ -13,7 +13,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ZenQueue',
-    version='0.5',
+    version='0.5.1',
     description='An incredibly simple (but fast) network message queueing system, written in Python.',
     author='Zachary Voase',
     author_email='disturbyte@gmail.com',
