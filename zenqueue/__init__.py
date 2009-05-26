@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 __all__ = ['client', 'queue', 'server', 'utils', 'log']
-__version__ = '0.5.1'
+__version__ = '0.5.2'
 
 # Try to import SimpleJSON from a couple of different sources.
 try:

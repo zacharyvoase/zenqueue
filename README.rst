@@ -1,5 +1,5 @@
 ===============
-ZenQueue v0.5.1
+ZenQueue v0.5.2
 ===============
 
 ZenQueue is an incredibly simple message queueing system. It was designed as an experiment, but the author thought it was pretty neat and powerful and decided to release it to the world at large. The latest release of this library includes both native and HTTP client and server implementations, in addition to both synchronous *and* asynchronous implementations of the clients and queue. The servers, however, are only available in asynchronous mode.
