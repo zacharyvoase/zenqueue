@@ -29,7 +29,7 @@ class AbstractQueueClient(object):
         try:
             status, result = json.loads(data)
         except ValueError, exc:
-            self.log.error('Invalid response returned: %r', received_data)
+            self.log.error('Invalid response returned: %r', data)
             raise
         
         # This handles the various response statuses the server can return.
